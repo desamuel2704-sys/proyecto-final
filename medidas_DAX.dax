@@ -1,0 +1,222 @@
+/*
+=============================================================
+  MEDIDAS DAX - PROYECTO FINAL BI 5925 | 2026-1
+  Modelo: Ventas Retail Colombia
+  
+  INSTRUCCIONES:
+  1. Abre Power BI Desktop con el archivo .pbix del proyecto.
+  2. En el panel "Datos", selecciona la tabla fact_ventas.
+  3. Haz clic en "Nueva medida" (cinta de opciones Modelado).
+  4. Pega cada medida individualmente y presiona Enter.
+  5. Organiza las medidas en una tabla vacía llamada [_Medidas].
+=============================================================
+*/
+
+
+/* ══════════════════════════════════════════════════════════
+   SECCIÓN 1 - VENTAS BÁSICAS
+   ══════════════════════════════════════════════════════════ */
+
+-- 1.1  Ingresos Totales (ventas netas con descuento aplicado)
+Ingresos Totales =
+SUMX(
+    fact_ventas,
+    fact_ventas[cantidad]
+        * fact_ventas[precio_unitario]
+        * (1 - fact_ventas[descuento_pct] / 100)
+)
+
+-- 1.2  Costo Total de Ventas
+Costo Total =
+SUMX(
+    fact_ventas,
+    RELATED(dim_producto[precio_costo]) * fact_ventas[cantidad]
+)
+
+-- 1.3  Utilidad Bruta
+Utilidad Bruta =
+[Ingresos Totales] - [Costo Total]
+
+-- 1.4  Margen Bruto (%)
+Margen Bruto % =
+DIVIDE(
+    [Utilidad Bruta],
+    [Ingresos Totales],
+    0
+)
+
+-- 1.5  Unidades Vendidas
+Unidades Vendidas =
+SUM(fact_ventas[cantidad])
+
+-- 1.6  Número de Transacciones
+# Transacciones =
+COUNTROWS(fact_ventas)
+
+-- 1.7  Ticket Promedio (ingreso por transacción)
+Ticket Promedio =
+DIVIDE(
+    [Ingresos Totales],
+    [# Transacciones],
+    0
+)
+
+
+/* ══════════════════════════════════════════════════════════
+   SECCIÓN 2 - INTELIGENCIA DE TIEMPO (Time Intelligence)
+   REQUISITO: La tabla dim_fecha debe estar marcada como
+              "Tabla de fechas" en Power BI y relacionada
+              con fact_ventas[fecha].
+   ══════════════════════════════════════════════════════════ */
+
+-- 2.1  Ingresos Año Anterior (mismo período)
+Ingresos Año Anterior =
+CALCULATE(
+    [Ingresos Totales],
+    SAMEPERIODLASTYEAR(dim_fecha[fecha])
+)
+
+-- 2.2  Variación Año a Año (YoY) en COP
+Variación YoY =
+[Ingresos Totales] - [Ingresos Año Anterior]
+
+-- 2.3  Variación YoY (%)
+Variación YoY % =
+DIVIDE(
+    [Variación YoY],
+    [Ingresos Año Anterior],
+    BLANK()
+)
+
+-- 2.4  Acumulado Año en Curso (YTD)
+Ingresos YTD =
+CALCULATE(
+    [Ingresos Totales],
+    DATESYTD(dim_fecha[fecha])
+)
+
+-- 2.5  Acumulado Trimestre en Curso (QTD)
+Ingresos QTD =
+CALCULATE(
+    [Ingresos Totales],
+    DATESQTD(dim_fecha[fecha])
+)
+
+-- 2.6  Acumulado Mes en Curso (MTD)
+Ingresos MTD =
+CALCULATE(
+    [Ingresos Totales],
+    DATESMTD(dim_fecha[fecha])
+)
+
+-- 2.7  Promedio Móvil 3 meses
+Promedio Móvil 3M =
+CALCULATE(
+    DIVIDE([Ingresos Totales], 3),
+    DATESINPERIOD(
+        dim_fecha[fecha],
+        LASTDATE(dim_fecha[fecha]),
+        -3,
+        MONTH
+    )
+)
+
+
+/* ══════════════════════════════════════════════════════════
+   SECCIÓN 3 - ANÁLISIS DE PRODUCTOS Y CATEGORÍAS
+   ══════════════════════════════════════════════════════════ */
+
+-- 3.1  Ingreso del producto TOP (ranking 1)
+Producto Top Ingreso =
+CALCULATE(
+    [Ingresos Totales],
+    TOPN(1, ALL(dim_producto[nombre]), [Ingresos Totales])
+)
+
+-- 3.2  Ranking de Producto por Ingresos
+Rank Producto =
+RANKX(
+    ALL(dim_producto[nombre]),
+    [Ingresos Totales],
+    ,
+    DESC,
+    DENSE
+)
+
+-- 3.3  % del Ingreso Total (participación de categoría/producto)
+% Participación Ingresos =
+DIVIDE(
+    [Ingresos Totales],
+    CALCULATE([Ingresos Totales], ALL(dim_producto)),
+    0
+)
+
+
+/* ══════════════════════════════════════════════════════════
+   SECCIÓN 4 - ANÁLISIS DE TIENDAS Y VENDEDORES
+   ══════════════════════════════════════════════════════════ */
+
+-- 4.1  Ingresos por Tienda (para tarjeta KPI)
+Ingresos por Tienda =
+CALCULATE(
+    [Ingresos Totales],
+    ALLEXCEPT(dim_tienda, dim_tienda[nombre_tienda])
+)
+
+-- 4.2  Meta de Ventas (supuesto: 10% más que año anterior)
+Meta Ventas =
+[Ingresos Año Anterior] * 1.10
+
+-- 4.3  Cumplimiento de Meta (%)
+Cumplimiento Meta % =
+DIVIDE(
+    [Ingresos Totales],
+    [Meta Ventas],
+    0
+)
+
+-- 4.4  Clientes únicos simulados (transacciones únicas por tienda)
+Transacciones por Tienda =
+CALCULATE(
+    [# Transacciones],
+    ALLEXCEPT(dim_tienda, dim_tienda[ciudad])
+)
+
+
+/* ══════════════════════════════════════════════════════════
+   SECCIÓN 5 - MEDIDAS DE FORMATO (para tarjetas y tooltips)
+   ══════════════════════════════════════════════════════════ */
+
+-- 5.1  Ingresos formateados como texto (para tarjeta dinámica)
+Ingresos Texto =
+"$ " & FORMAT([Ingresos Totales] / 1000000, "#,##0.0") & " M"
+
+-- 5.2  Semáforo YoY (usa en formato condicional)
+Color YoY =
+IF([Variación YoY] >= 0, "#2ECC71", "#E74C3C")
+-- Verde si crece, rojo si cae
+
+
+/* ══════════════════════════════════════════════════════════
+   COLUMNAS CALCULADAS (agregar a fact_ventas)
+   ══════════════════════════════════════════════════════════ */
+
+-- CC.1  Ingreso Neto por fila
+Ingreso Neto =
+fact_ventas[cantidad]
+    * fact_ventas[precio_unitario]
+    * (1 - fact_ventas[descuento_pct] / 100)
+
+-- CC.2  Utilidad por fila
+Utilidad =
+fact_ventas[Ingreso Neto]
+    - RELATED(dim_producto[precio_costo]) * fact_ventas[cantidad]
+
+-- CC.3  Segmento de cantidad (para análisis ABC)
+Segmento Cantidad =
+SWITCH(
+    TRUE(),
+    fact_ventas[cantidad] <= 3,  "Bajo",
+    fact_ventas[cantidad] <= 8,  "Medio",
+    "Alto"
+)
