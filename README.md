@@ -150,9 +150,9 @@ Ver el documento **`preguntas_respuestas_BI.docx`** para las 7 preguntas clave c
 
 | Nombre | GitHub | Ciudad |
 |--------|--------|--------|
-| Samuel Lozano | [@TU_USUARIO](https://github.com/TU_USUARIO) | Bogotá |
-| [Compañero 2] | [@usuario2](https://github.com/usuario2) | — |
-| [Compañero 3] | [@usuario3](https://github.com/usuario3) | — |
+| Samuel Lozano | [desamuel2704-sys](https://github.com/[desamuel2704-sys) | Bogotá |
+| [Sebastian vanoy] | [@Sebastian-unisabana](https://github.com/@Sebastian-unisabana) | macanal |
+| [Samuelgonbe] | [@usuario3](https://github.com/Samuelgonbe) | cowa  |
 
 > ⚠️ **Recordatorio:** Cada integrante debe alojar el proyecto en su **propio repositorio personal público** y enviar su link individual.
 
